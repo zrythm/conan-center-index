@@ -74,7 +74,7 @@ class QtConan(ConanFile):
         "device": [None, "ANY"],
         "cross_compile": [None, "ANY"],
         "sysroot": [None, "ANY"],
-        "multiconfiguration": [True, False],
+        "bundled_libs": [True, False],
         "disabled_features": [None, "ANY"],
     }
     options.update({module: [True, False] for module in _submodules})
@@ -116,7 +116,7 @@ class QtConan(ConanFile):
         "device": None,
         "cross_compile": None,
         "sysroot": None,
-        "multiconfiguration": False,
+        "bundled_libs": False,
         "disabled_features": "",
     }
     # essential_modules, addon_modules, deprecated_modules, preview_modules:
@@ -193,9 +193,6 @@ class QtConan(ConanFile):
             del self.options.with_md4c
             self.options.rm_safe("with_x11")
             self.options.rm_safe("with_egl")
-
-        if self.options.multiconfiguration:
-            del self.settings.build_type
 
         # Requested modules:
         # - any module for non-removed options that have 'True' value
@@ -342,10 +339,11 @@ class QtConan(ConanFile):
         cmake_layout(self, src_folder="src")
 
     def requirements(self):
-        self.requires("zlib/[>=1.2.11 <2]")
+        if not self.options.bundled_libs:
+            self.requires("zlib/[>=1.2.11 <2]")
         if self.options.openssl:
             self.requires("openssl/[>=1.1 <4]")
-        if self.options.with_pcre2:
+        if self.options.with_pcre2 and not self.options.bundled_libs:
             self.requires("pcre2/10.42")
         if self.options.get_safe("with_vulkan"):
             # Note: the versions of vulkan-loader and moltenvk
@@ -358,24 +356,24 @@ class QtConan(ConanFile):
                 self.requires("moltenvk/1.2.2")
         if self.options.with_glib:
             self.requires("glib/2.78.3")
-        if self.options.with_doubleconversion and not self.options.multiconfiguration:
+        if self.options.with_doubleconversion and not self.options.bundled_libs:
             self.requires("double-conversion/3.3.0")
-        if self.options.get_safe("with_freetype", False) and not self.options.multiconfiguration:
+        if self.options.get_safe("with_freetype", False) and not self.options.bundled_libs:
             self.requires("freetype/[>=2.13 <3]")
         if self.options.get_safe("with_fontconfig", False):
             self.requires("fontconfig/2.15.0")
         if self.options.get_safe("with_icu", False):
             self.requires("icu/[>=74.2]")
-        if self.options.get_safe("with_harfbuzz", False) and not self.options.multiconfiguration:
+        if self.options.get_safe("with_harfbuzz", False) and not self.options.bundled_libs:
             self.requires("harfbuzz/[>=8.3.0]")
-        if self.options.get_safe("with_libjpeg", False) and not self.options.multiconfiguration:
+        if self.options.get_safe("with_libjpeg", False) and not self.options.bundled_libs:
             if self.options.with_libjpeg == "libjpeg-turbo":
                 self.requires("libjpeg-turbo/[~3]")
             else:
                 self.requires("libjpeg/[>=9e]")
-        if self.options.get_safe("with_libpng", False) and not self.options.multiconfiguration:
+        if self.options.get_safe("with_libpng", False) and not self.options.bundled_libs:
             self.requires("libpng/[>=1.6 <2]")
-        if self.options.with_sqlite3 and not self.options.multiconfiguration:
+        if self.options.with_sqlite3 and not self.options.bundled_libs:
             self.requires("sqlite3/[>=3.45.0 <4]")
         if self.options.get_safe("with_mysql", False):
             self.requires("libmysqlclient/8.1.0")
@@ -418,7 +416,7 @@ class QtConan(ConanFile):
             self.requires("dbus/1.15.8")
         if self.settings.os in ['Linux', 'FreeBSD'] and self.options.with_gssapi:
             self.requires("krb5/1.21.2")
-        if self.options.get_safe("with_md4c", False):
+        if self.options.get_safe("with_md4c", False) and not self.options.bundled_libs:
             self.requires("md4c/[>=0.4.8 <1]") # stable API since 0.3x as per md4c wiki
 
     def build_requirements(self):
@@ -492,8 +490,6 @@ class QtConan(ConanFile):
         if is_msvc(self) and "MT" in msvc_runtime_flag(self):
             tc.variables["FEATURE_static_runtime"] = "ON"
 
-        if self.options.multiconfiguration:
-            tc.variables["CMAKE_CONFIGURATION_TYPES"] = "Release;Debug"
         tc.variables["FEATURE_optimize_size"] = ("ON" if self.settings.get_safe("build_type") == "MinSizeRel" else "OFF")
 
         for module in self._get_module_tree:
@@ -501,7 +497,7 @@ class QtConan(ConanFile):
         tc.variables["BUILD_qtqa"] = "OFF"
         tc.variables["BUILD_qtrepotools"] = "OFF"
 
-        tc.variables["FEATURE_system_zlib"] = "ON"
+        tc.variables["FEATURE_system_zlib"] = ("OFF" if self.options.bundled_libs else "ON")
 
         tc.variables["INPUT_opengl"] = self.options.get_safe("opengl", "no")
 
@@ -564,7 +560,7 @@ class QtConan(ConanFile):
                               ("with_sqlite3", "sqlite"),
                               ("with_pcre2", "pcre2"),]:
             if self.options.get_safe(opt, False):
-                if self.options.multiconfiguration:
+                if self.options.bundled_libs:
                     tc.variables[f"FEATURE_{conf_arg}"] = "ON"
                 else:
                     tc.variables[f"FEATURE_system_{conf_arg}"] = "ON"
@@ -581,7 +577,7 @@ class QtConan(ConanFile):
                               ("with_md4c", "libmd4c"),
                               ("with_pcre2", "pcre"),]:
             if self.options.get_safe(opt, False):
-                if self.options.multiconfiguration:
+                if self.options.bundled_libs:
                     tc.variables[f"INPUT_{conf_arg}"] = "qt"
                 else:
                     tc.variables[f"INPUT_{conf_arg}"] = "system"
@@ -676,14 +672,6 @@ class QtConan(ConanFile):
     def package_id(self):
         del self.info.options.cross_compile
         del self.info.options.sysroot
-        if self.info.options.multiconfiguration:
-            if self.info.settings.compiler == "Visual Studio":
-                if "MD" in self.info.settings.compiler.runtime:
-                    self.info.settings.compiler.runtime = "MD/MDd"
-                else:
-                    self.info.settings.compiler.runtime = "MT/MTd"
-            elif self.info.settings.compiler == "msvc":
-                self.info.settings.compiler.runtime_type = "Release/Debug"
 
     def source(self):
         destination = self.source_folder
@@ -1152,10 +1140,12 @@ class QtConan(ConanFile):
             self.cpp_info.components["qtPlatform"].cxxflags.append("-permissive-")
             self.cpp_info.components["qtPlatform"].cxxflags.append("-Zc:__cplusplus")
 
-        core_reqs = ["Platform", "zlib::zlib"]
-        if self.options.with_pcre2:
+        core_reqs = ["Platform"]
+        if not self.options.bundled_libs:
+            core_reqs.append("zlib::zlib")
+        if self.options.with_pcre2 and not self.options.bundled_libs:
             core_reqs.append("pcre2::pcre2")
-        if self.options.with_doubleconversion:
+        if self.options.with_doubleconversion and not self.options.bundled_libs:
             core_reqs.append("double-conversion::double-conversion")
         if self.options.get_safe("with_icu", False):
             core_reqs.append("icu::icu")
@@ -1193,9 +1183,9 @@ class QtConan(ConanFile):
             gui_reqs = []
             if self.options.with_dbus:
                 gui_reqs.append("DBus")
-            if self.options.with_freetype:
+            if self.options.with_freetype and not self.options.bundled_libs:
                 gui_reqs.append("freetype::freetype")
-            if self.options.with_libpng:
+            if self.options.with_libpng and not self.options.bundled_libs:
                 gui_reqs.append("libpng::libpng")
             if self.options.get_safe("with_fontconfig", False):
                 gui_reqs.append("fontconfig::fontconfig")
@@ -1213,11 +1203,11 @@ class QtConan(ConanFile):
                 gui_reqs.append("vulkan-headers::vulkan-headers")
                 if is_apple_os(self):
                     gui_reqs.append("moltenvk::moltenvk")
-            if self.options.with_harfbuzz:
+            if self.options.with_harfbuzz and not self.options.bundled_libs:
                 gui_reqs.append("harfbuzz::harfbuzz")
             if self.options.with_glib:
                 gui_reqs.append("glib::glib")
-            if self.options.with_md4c:
+            if self.options.with_md4c and not self.options.bundled_libs:
                 gui_reqs.append("md4c::md4c")
             _create_module("Gui", gui_reqs)
 
