@@ -73,7 +73,7 @@ class JsonSchemaValidatorConan(ConanFile):
         if Version(self.version) < "2.3.0":
             self.requires("nlohmann_json/3.10.5", transitive_headers=True)
         else:
-            self.requires("nlohmann_json/3.11.3", transitive_headers=True)
+            self.requires("nlohmann_json/[>=3.11.3 <3.13]", transitive_headers=True)
 
     def validate(self):
         if self.settings.compiler.get_safe("cppstd"):

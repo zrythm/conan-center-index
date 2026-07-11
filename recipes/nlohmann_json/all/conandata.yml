@@ -1,4 +1,7 @@
 sources:
+  "3.12.1":
+    url: "https://github.com/nlohmann/json/archive/230bfd15a2bb7f01ebb3fcd3cf898b697ef43c48.zip"
+    sha256: "87e21250cf8667559ee59faef6aa1c81d922aed802fcb5620babdc7d49e5deb3"
   "3.12.0":
     url: "https://github.com/nlohmann/json/archive/v3.12.0.tar.gz"
     sha256: "4b92eb0c06d10683f7447ce9406cb97cd4b453be18d7279320f7b2f025c10187"
