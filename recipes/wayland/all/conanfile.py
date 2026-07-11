@@ -121,6 +121,16 @@ class WaylandConan(ConanFile):
         rmdir(self, pkg_config_dir)
 
     def package_info(self):
+        # When only providing the scanner (no libraries), don't generate CMake
+        # config so consumers fall back to system pkg-config for libwayland-client
+        # See https://github.com/conan-io/conan-center-index/issues/30465
+        if not self.options.enable_libraries:
+            self.cpp_info.set_property("cmake_find_mode", "none")
+            for comp in ["wayland-client", "wayland-server", "wayland-cursor", "wayland-egl"]:
+                self.cpp_info.components[comp].libs = []
+                self.cpp_info.components[comp].includedirs = []
+                self.cpp_info.components[comp].libdirs = []
+
         self.cpp_info.components["wayland-scanner"].set_property("pkg_config_name", "wayland-scanner")
         self.cpp_info.components["wayland-scanner"].resdirs = ["res"]
         self.cpp_info.components["wayland-scanner"].includedirs = []
