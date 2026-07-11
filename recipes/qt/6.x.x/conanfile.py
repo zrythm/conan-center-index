@@ -622,6 +622,16 @@ class QtConan(ConanFile):
             # Ensure tools for host are always built
             tc.cache_variables["QT_FORCE_BUILD_TOOLS"] = True
 
+        sanitizer = self.settings.get_safe("compiler.sanitizer") or ""
+        if "Address" in sanitizer:
+            tc.cache_variables["QT_FEATURE_sanitize_address"] = "ON"
+        if "UndefinedBehavior" in sanitizer:
+            tc.cache_variables["QT_FEATURE_sanitize_undefined"] = "ON"
+        if "Thread" in sanitizer:
+            tc.cache_variables["QT_FEATURE_sanitize_thread"] = "ON"
+        if "Realtime" in sanitizer:
+            tc.cache_variables["QT_FEATURE_sanitizer"] = "ON"
+
         tc.variables["FEATURE_pkg_config"] = "ON"
         if self.settings.compiler == "gcc" and self.settings.get_safe("build_type") == "Debug" and not self.options.shared:
             tc.variables["BUILD_WITH_PCH"] = "OFF"  # disabling PCH to save disk space
@@ -848,7 +858,8 @@ class QtConan(ConanFile):
                 rmdir(self, os.path.join(self.package_folder, "licenses", module))
         rmdir(self, os.path.join(self.package_folder, "lib", "pkgconfig"))
         for mask in ["Find*.cmake", "*Config.cmake", "*-config.cmake"]:
-            rm(self, mask, self.package_folder, recursive=True, excludes="Qt6HostInfoConfig.cmake")
+            rm(self, mask, self.package_folder, recursive=True,
+               excludes=["Qt6HostInfoConfig.cmake", "*WaylandScannerTools*"])
         rm(self, "*.la*", os.path.join(self.package_folder, "lib"), recursive=True)
         rm(self, "*.pdb*", self.package_folder, recursive=True)
         rm(self, "ensure_pro_file.cmake", self.package_folder, recursive=True)
@@ -867,6 +878,20 @@ class QtConan(ConanFile):
 
             if m != "Qt6HostInfo":
                 rmdir(self, os.path.join(self.package_folder, "lib", "cmake", m))
+
+        if self.options.get_safe("qtwayland"):
+            scanner_tools_dir = os.path.join(self.package_folder, "lib", "cmake",
+                                             "Qt6WaylandScannerTools")
+            os.makedirs(scanner_tools_dir, exist_ok=True)
+            copy(self, "Qt6Wayland*.cmake",
+                 os.path.join(self.source_folder, "qtbase", "src", "tools",
+                              "qtwaylandscanner"),
+                 scanner_tools_dir)
+            save(self, os.path.join(scanner_tools_dir,
+                 "Qt6WaylandScannerToolsConfig.cmake"),
+                 'set(Qt6WaylandScannerTools_FOUND TRUE)\n'
+                 'include("${CMAKE_CURRENT_LIST_DIR}/Qt6WaylandClientMacros.cmake")\n'
+                 'include("${CMAKE_CURRENT_LIST_DIR}/Qt6WaylandCompositorMacros.cmake")\n')
 
         extension = ""
         if self.settings.os == "Windows":
@@ -920,6 +945,17 @@ class QtConan(ConanFile):
             targets.append("repc")
         if self.options.get_safe("qtscxml"):
             targets.append("qscxmlc")
+        if self.options.get_safe("qtwayland"):
+            targets.append("qtwaylandscanner")
+        if self.options.qtdeclarative:
+            targets.append("qmlcontextpropertydump")
+        for search_dir in ("bin", "libexec"):
+            dir_path = os.path.join(self.package_folder, search_dir)
+            if os.path.isdir(dir_path):
+                for fname in os.listdir(dir_path):
+                    name = fname[:-len(extension)] if extension and fname.endswith(extension) else fname
+                    if name and name not in targets and not name.startswith(".") and "-" not in name:
+                        targets.append(name)
         for target in targets:
             exe_path = None
             for path_ in [f"bin/{target}{extension}",
@@ -938,6 +974,16 @@ class QtConan(ConanFile):
                     set_target_properties(${{QT_CMAKE_EXPORT_NAMESPACE}}::{target} PROPERTIES IMPORTED_LOCATION ${{CMAKE_CURRENT_LIST_DIR}}/../../../{exe_path})
                 endif()
                 """)
+
+        filecontents += textwrap.dedent(f"""\
+            foreach(_qt_tool_name moc qlalr rcc tracegen cmake_automoc_parser qmake qtpaths syncqt tracepointgen qdbuscpp2xml qdbusxml2cpp qvkgen uic wasmdeployqt qtattributionsscanner qhelpgenerator lconvert lrelease lrelease-pro lupdate lupdate-pro lcheck ltext2id qsb qmltyperegistrar qmlcachegen qmllint qmlimportscanner qmlformat qml qmlprofiler qmlpreview qmltc qmlaotstats qtwaylandscanner qmlcontextpropertydump qmleasing qmake6 qmltestrunner androiddeployqt svgtoqml qmlplugindump qtdiag qmldom qcshadergen linguist qtdiag6 qtpaths6 androidtestrunner qdistancefieldgenerator kmap2qmap assistant qdbusviewer qdbus qmlscene qmltime qmlls androiddeployqt6 pixeltool qtplugininfo designer wasmdeployqt6 qmljsrootgen)
+                if(NOT TARGET Qt::${{_qt_tool_name}} AND TARGET ${{QT_CMAKE_EXPORT_NAMESPACE}}::${{_qt_tool_name}})
+                    add_executable(Qt::${{_qt_tool_name}} IMPORTED GLOBAL)
+                    get_target_property(_qt_imported_location ${{QT_CMAKE_EXPORT_NAMESPACE}}::${{_qt_tool_name}} IMPORTED_LOCATION)
+                    set_target_properties(Qt::${{_qt_tool_name}} PROPERTIES IMPORTED_LOCATION ${{_qt_imported_location}})
+                endif()
+            endforeach()
+            """)
 
         filecontents += textwrap.dedent(f"""\
             if(NOT DEFINED QT_DEFAULT_MAJOR_VERSION)

@@ -1,0 +1,12 @@
+--- a/src/qml/jsruntime/qv4function.cpp
++++ b/src/qml/jsruntime/qv4function.cpp
+@@ -152,7 +152,8 @@
+     const auto isEnumUsedAsType = [&](const QV4::ExecutableCompilationUnit *unit,
+                                       int elementNameId, QQmlTypeLoader *typeLoader,
+                                       const quint16 *parameter = nullptr) {
+-        const QStringView name = unit->baseCompilationUnit()->stringAt(elementNameId);
++        const QString nameStr = unit->baseCompilationUnit()->stringAt(elementNameId);
++        const QStringView name(nameStr);
+         const auto split = name.tokenize(u'.').toContainer<QVarLengthArray<QStringView, 4>>();
+         if (split.size() != 2)
+             return false;
