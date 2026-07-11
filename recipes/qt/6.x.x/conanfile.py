@@ -941,6 +941,8 @@ class QtConan(ConanFile):
             dir_path = os.path.join(self.package_folder, search_dir)
             if os.path.isdir(dir_path):
                 for fname in os.listdir(dir_path):
+                    if os.path.isdir(os.path.join(dir_path, fname)):
+                        continue
                     name = fname[:-len(extension)] if extension and fname.endswith(extension) else fname
                     if name and name not in targets and not name.startswith(".") and "-" not in name:
                         targets.append(name)
