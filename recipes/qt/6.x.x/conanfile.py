@@ -1292,7 +1292,7 @@ class QtConan(ConanFile):
 
             _create_plugin("QGifPlugin", "qgif", "imageformats", ["Gui"])
             _create_plugin("QIcoPlugin", "qico", "imageformats", ["Gui"])
-            if self.options.get_safe("with_libjpeg"):
+            if self.options.get_safe("with_libjpeg") and not self.options.bundled_libs:
                 jpeg_reqs = ["Gui"]
                 if self.options.with_libjpeg == "libjpeg-turbo":
                     jpeg_reqs.append("libjpeg-turbo::libjpeg-turbo")
@@ -1303,7 +1303,8 @@ class QtConan(ConanFile):
         if self.options.with_mysql:
             _create_plugin("QMYSQLDriverPlugin", "qsqlmysql", "sqldrivers", ["libmysqlclient::libmysqlclient"])
         if self.options.with_sqlite3:
-            _create_plugin("QSQLiteDriverPlugin", "qsqlite", "sqldrivers", ["sqlite3::sqlite3"])
+            sqlite_reqs = [] if self.options.bundled_libs else ["sqlite3::sqlite3"]
+            _create_plugin("QSQLiteDriverPlugin", "qsqlite", "sqldrivers", sqlite_reqs)
         if self.options.with_pq:
             _create_plugin("QPSQLDriverPlugin", "qsqlpsql", "sqldrivers", ["libpq::libpq"])
         if self.options.with_odbc:
