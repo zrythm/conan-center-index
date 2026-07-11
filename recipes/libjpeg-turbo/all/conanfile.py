@@ -94,6 +94,11 @@ class LibjpegTurboConan(ConanFile):
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
+        apply_conandata_patches(self)
+        replace_in_file(
+            self, "CMakeLists.txt",
+            "  if(COUNT GREATER 1)",
+            "  if(WITH_SIMD AND COUNT GREATER 1)")
 
     @property
     def _is_arithmetic_encoding_enabled(self):
