@@ -326,7 +326,7 @@ class QtConan(ConanFile):
         if self.options.get_safe("qtwayland", False) and not self.dependencies.direct_host["xkbcommon"].options.with_wayland:
             raise ConanInvalidConfiguration("The 'with_wayland' option for the 'xkbcommon' package must be enabled when the 'qtwayland' option is enabled")
 
-        if self.options.with_sqlite3 and not self.dependencies["sqlite3"].options.enable_column_metadata:
+        if self.options.with_sqlite3 and not self.options.bundled_libs and not self.dependencies["sqlite3"].options.enable_column_metadata:
             raise ConanInvalidConfiguration("sqlite3 option enable_column_metadata must be enabled for qt")
 
         if self.options.get_safe("qtspeech") and not self.options.qtdeclarative:
