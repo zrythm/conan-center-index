@@ -101,6 +101,8 @@ class WaylandConan(ConanFile):
         if not can_run(self):
             tc.project_options["build.pkg_config_path"] = self.generators_folder
         tc.project_options["scanner"] = True
+        if self.settings.get_safe("compiler.sanitizer"):
+            tc.project_options["b_lundef"] = False
         tc.generate()
 
     def _patch_sources(self):
