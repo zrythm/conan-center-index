@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 from conan import ConanFile
 from conan.tools.apple import fix_apple_shared_install_name
@@ -91,6 +92,31 @@ class XkbcommonConan(ConanFile):
             pkg_config_deps.build_context_activated = ["wayland", "wayland-protocols"]
             pkg_config_deps.build_context_folder = "_build"
         pkg_config_deps.generate()
+
+        if (self.options.get_safe("with_wayland") and not self.dependencies["wayland"].options.enable_libraries):
+            # When wayland.enable_libraries=False (scanner-only), the system
+            # provides the actual wayland libraries. Copy the system .pc files
+            # into the generators folder so meson finds them via pkg_config_path.
+            # Strip Requires.private: lines so pkgconf doesn't fail resolving
+            # transitive deps (e.g. libffi) that aren't in the Conan search path.
+            for dep in ["wayland-client", "wayland-server",
+                        "wayland-cursor", "wayland-egl"]:
+                result = subprocess.run(
+                    ["/usr/bin/pkg-config", "--variable=pcfiledir", dep],
+                    capture_output=True, text=True,
+                )
+                pcfiledir = result.stdout.strip()
+                if pcfiledir:
+                    src = os.path.join(pcfiledir, f"{dep}.pc")
+                    if os.path.exists(src):
+                        with open(src) as f:
+                            lines = f.readlines()
+                        filtered = [
+                            l for l in lines
+                            if not l.strip().startswith("Requires.private:")
+                        ]
+                        with open(os.path.join(self.generators_folder, f"{dep}.pc"), "w") as f:
+                            f.writelines(filtered)
 
     def _patch_sources(self):
         if self.options.get_safe("with_wayland"):
