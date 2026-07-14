@@ -943,6 +943,8 @@ class QtConan(ConanFile):
                 for fname in os.listdir(dir_path):
                     if os.path.isdir(os.path.join(dir_path, fname)):
                         continue
+                    if extension and not fname.endswith(extension):
+                        continue
                     name = fname[:-len(extension)] if extension and fname.endswith(extension) else fname
                     if name and name not in targets and not name.startswith(".") and "-" not in name:
                         targets.append(name)
