@@ -80,3 +80,5 @@ patches:
   "6.12.0":
     - "patch_file": "patches/windows-common-controls-6.0-manifest.patch"
       "base_path": "qtbase"
+    - "patch_file": "patches/macos-macdeployqt-debug-qml-plugins.patch"
+      "base_path": "qtbase"
