@@ -77,3 +77,6 @@ patches:
       "base_path": "qtwebengine/src/3rdparty"
     - "patch_file": "patches/6.8.3-fix-macos-26.4.diff"
       "base_path": "qtbase"
+  "6.12.0":
+    - "patch_file": "patches/windows-common-controls-6.0-manifest.patch"
+      "base_path": "qtbase"
