@@ -1,0 +1,66 @@
+--- a/src/tools/macdeployqt/shared/shared.cpp
++++ b/src/tools/macdeployqt/shared/shared.cpp
+@@ -667,7 +667,7 @@
+     return true;
+ }
+ 
+-void recursiveCopyAndDeploy(const QString &appBundlePath, const QList<QString> &rpaths, const QString &sourcePath, const QString &destinationPath)
++void recursiveCopyAndDeploy(const QString &appBundlePath, const QList<QString> &rpaths, const QString &sourcePath, const QString &destinationPath, bool useDebugLibs)
+ {
+     QDir().mkpath(destinationPath);
+ 
+@@ -677,8 +677,8 @@
+ 
+     const QStringList files = sourceDir.entryList(QStringList() << QStringLiteral("*"), QDir::Files | QDir::NoDotAndDotDot);
+     for (const QString &file : files) {
+-        if (file.endsWith("_debug.dylib"))
+-            continue; // Skip debug versions
++        if (!useDebugLibs && file.endsWith("_debug.dylib"))
++            continue; // Skip debug versions for release builds
+ 
+         if (file.endsWith(".qrc"))
+             continue;
+@@ -714,7 +714,6 @@
+                 linkFilePrintStatus(linkPath, linkDestinationPath);
+ 
+                 runStrip(fileDestinationPath);
+-                bool useDebugLibs = false;
+                 bool useLoaderPath = false;
+                 QList<FrameworkInfo> frameworks = getQtFrameworks(fileDestinationPath, appBundlePath, rpaths, useDebugLibs);
+                 deployQtFrameworks(frameworks, appBundlePath, QStringList(fileDestinationPath), useDebugLibs, useLoaderPath);
+@@ -730,7 +729,7 @@
+         if (dir.endsWith(".dSYM"))
+             continue;
+ 
+-        recursiveCopyAndDeploy(appBundlePath, rpaths, sourcePath + u'/' + dir, destinationPath + u'/' + dir);
++        recursiveCopyAndDeploy(appBundlePath, rpaths, sourcePath + u'/' + dir, destinationPath + u'/' + dir, useDebugLibs);
+     }
+ }
+ 
+@@ -1288,7 +1287,7 @@
+     deployPlugins(applicationBundle, deploymentInfo.pluginPath, pluginDestinationPath, deploymentInfo, useDebugLibs);
+ }
+ 
+-void deployQmlImport(const QString &appBundlePath, const QList<QString> &rpaths, const QString &importSourcePath, const QString &importName)
++void deployQmlImport(const QString &appBundlePath, const QList<QString> &rpaths, const QString &importSourcePath, const QString &importName, bool useDebugLibs)
+ {
+     QString importDestinationPath = appBundlePath + "/Contents/Resources/qml/" + importName;
+ 
+@@ -1297,7 +1296,7 @@
+     if (QDir().exists(importDestinationPath))
+         return;
+ 
+-    recursiveCopyAndDeploy(appBundlePath, rpaths, importSourcePath, importDestinationPath);
++    recursiveCopyAndDeploy(appBundlePath, rpaths, importSourcePath, importDestinationPath, useDebugLibs);
+ }
+ 
+ static bool importLessThan(const QVariant &v1, const QVariant &v2)
+@@ -1412,7 +1411,7 @@
+         if (version.startsWith(u'.'))
+             name.append(version);
+ 
+-        deployQmlImport(appBundlePath, deploymentInfo.rpathsUsed, path, name);
++        deployQmlImport(appBundlePath, deploymentInfo.rpathsUsed, path, name, deploymentInfo.isDebug);
+         LogNormal() << "";
+     }
+     return true;
