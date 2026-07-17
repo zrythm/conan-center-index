@@ -83,4 +83,6 @@ patches:
   "6.11.1":
     - "patch_file": "patches/6.11.1-fix-qv4function-uaf.diff"
       "base_path": "qtdeclarative"
+    - "patch_file": "patches/windows-common-controls-6.0-manifest.patch"
+      "base_path": "qtbase"
 
