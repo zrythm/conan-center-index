@@ -438,7 +438,15 @@ class QtConan(ConanFile):
         if self.options.qtwayland:
             self.tool_requires("wayland/1.22.0")
         if cross_building(self):
-            self.tool_requires(f"qt/{self.version}")
+            # The host build locates its build-time tools in this package, so
+            # options that gate tool builds must match the host build.
+            # Consumer-set options do not propagate to build-context
+            # tool_requires, so forward them explicitly. with_dbus gates
+            # qdbuscpp2xml/qdbusxml2cpp, which qtbase's dbus code generation
+            # needs when Qt is built with dbus support.
+            self.tool_requires(
+                f"qt/{self.version}",
+                options={"with_dbus": self.options.with_dbus})
 
     def generate(self):
         ms = VirtualBuildEnv(self)
