@@ -4,19 +4,18 @@ from conan.tools.env import VirtualBuildEnv
 from conan.tools.files import copy, get, rm, rmdir
 from conan.tools.layout import basic_layout
 from conan.tools.meson import Meson, MesonToolchain
-from conan.tools.microsoft import is_msvc
-from conan.tools.scm import Version
+from conan.tools.gnu import PkgConfigDeps
 import os
 
 required_conan_version = ">=1.53.0"
 
 
-class SerdConan(ConanFile):
-    name = "serd"
+class SordConan(ConanFile):
+    name = "sord"
     url = "https://github.com/conan-io/conan-center-index"
-    homepage = "https://drobilla.net/software/serd.html"
-    description = "A lightweight C library for RDF syntax"
-    topics = "linked-data", "semantic-web", "rdf", "turtle", "trig", "ntriples", "nquads"
+    homepage = "https://drobilla.net/software/sord.html"
+    description = "A lightweight C library for storing RDF data in memory"
+    topics = "linked-data", "semantic-web", "rdf"
     license = "ISC"
 
     package_type = "library"
@@ -43,8 +42,13 @@ class SerdConan(ConanFile):
     def layout(self):
         basic_layout(self, src_folder="src")
 
+    def requirements(self):
+        self.requires("serd/0.32.10", transitive_headers=True)
+        self.requires("zix/0.8.2")
+
     def build_requirements(self):
         self.tool_requires("meson/1.10.2")
+        self.tool_requires("pkgconf/2.5.1")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -54,9 +58,12 @@ class SerdConan(ConanFile):
         env.generate()
         tc = MesonToolchain(self)
         tc.project_options["docs"] = "disabled"
+        tc.project_options["man"] = "disabled"
         tc.project_options["tests"] = "disabled"
         tc.project_options["tools"] = "disabled"
         tc.generate()
+        deps = PkgConfigDeps(self)
+        deps.generate()
 
     def build(self):
         meson = Meson(self)
@@ -73,14 +80,11 @@ class SerdConan(ConanFile):
         fix_msvc_libname(self)
 
     def package_info(self):
-        self.cpp_info.set_property("pkg_config_name", "serd-0")
-        libname = "serd"
-        if (not (is_msvc(self) and self.options.shared)) or (Version(self.version) >= "0.32.0" and is_msvc(self)):
-            libname += "-0"
-        self.cpp_info.libs = [libname]
-        self.cpp_info.includedirs = [os.path.join("include", "serd-0")]
+        self.cpp_info.set_property("pkg_config_name", "sord-0")
+        self.cpp_info.libs = ["sord-0"]
+        self.cpp_info.includedirs = [os.path.join("include", "sord-0")]
         if self.settings.os == "Windows" and not self.options.shared:
-            self.cpp_info.defines.append("SERD_STATIC")
+            self.cpp_info.defines.append("SORD_STATIC")
         if self.settings.os in ["Linux", "FreeBSD"]:
             self.cpp_info.system_libs.append("m")
 

@@ -4,19 +4,17 @@ from conan.tools.env import VirtualBuildEnv
 from conan.tools.files import copy, get, rm, rmdir
 from conan.tools.layout import basic_layout
 from conan.tools.meson import Meson, MesonToolchain
-from conan.tools.microsoft import is_msvc
-from conan.tools.scm import Version
 import os
 
 required_conan_version = ">=1.53.0"
 
 
-class SerdConan(ConanFile):
-    name = "serd"
+class ZixConan(ConanFile):
+    name = "zix"
     url = "https://github.com/conan-io/conan-center-index"
-    homepage = "https://drobilla.net/software/serd.html"
-    description = "A lightweight C library for RDF syntax"
-    topics = "linked-data", "semantic-web", "rdf", "turtle", "trig", "ntriples", "nquads"
+    homepage = "https://drobilla.net/software/zix.html"
+    description = "A lightweight C library of portability wrappers and data structures"
+    topics = "data-structures", "portability"
     license = "ISC"
 
     package_type = "library"
@@ -53,9 +51,12 @@ class SerdConan(ConanFile):
         env = VirtualBuildEnv(self)
         env.generate()
         tc = MesonToolchain(self)
+        tc.project_options["benchmarks"] = "disabled"
         tc.project_options["docs"] = "disabled"
+        tc.project_options["html"] = "disabled"
+        tc.project_options["singlehtml"] = "disabled"
         tc.project_options["tests"] = "disabled"
-        tc.project_options["tools"] = "disabled"
+        tc.project_options["tests_cpp"] = "disabled"
         tc.generate()
 
     def build(self):
@@ -73,16 +74,13 @@ class SerdConan(ConanFile):
         fix_msvc_libname(self)
 
     def package_info(self):
-        self.cpp_info.set_property("pkg_config_name", "serd-0")
-        libname = "serd"
-        if (not (is_msvc(self) and self.options.shared)) or (Version(self.version) >= "0.32.0" and is_msvc(self)):
-            libname += "-0"
-        self.cpp_info.libs = [libname]
-        self.cpp_info.includedirs = [os.path.join("include", "serd-0")]
+        self.cpp_info.set_property("pkg_config_name", "zix-0")
+        self.cpp_info.libs = ["zix-0"]
+        self.cpp_info.includedirs = [os.path.join("include", "zix-0")]
         if self.settings.os == "Windows" and not self.options.shared:
-            self.cpp_info.defines.append("SERD_STATIC")
+            self.cpp_info.defines.append("ZIX_STATIC")
         if self.settings.os in ["Linux", "FreeBSD"]:
-            self.cpp_info.system_libs.append("m")
+            self.cpp_info.system_libs.append("pthread")
 
 def fix_msvc_libname(conanfile, remove_lib_prefix=True):
     """remove lib prefix & change extension to .lib in case of cl like compiler"""
