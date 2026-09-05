@@ -94,7 +94,6 @@ class LibjpegTurboConan(ConanFile):
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
-        apply_conandata_patches(self)
         replace_in_file(
             self, "CMakeLists.txt",
             "  if(COUNT GREATER 1)",
@@ -116,6 +115,9 @@ class LibjpegTurboConan(ConanFile):
 
         tc = CMakeToolchain(self)
         tc.blocks.remove("output_dirs")
+        # GNUInstallDirs resolves to lib64 on some distributions; keep
+        # everything in lib so the package layout matches cpp_info
+        tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["ENABLE_STATIC"] = not self.options.shared
         tc.variables["ENABLE_SHARED"] = self.options.shared
         tc.variables["WITH_SIMD"] = self.options.get_safe("SIMD", False)
