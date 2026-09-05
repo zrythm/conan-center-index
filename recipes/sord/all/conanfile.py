@@ -1,5 +1,5 @@
 from conan import ConanFile
-from conan.tools.apple import fix_apple_shared_install_name
+from conan.tools.apple import fix_apple_shared_install_name, to_apple_arch
 from conan.tools.env import VirtualBuildEnv
 from conan.tools.files import copy, get, rm, rmdir
 from conan.tools.layout import basic_layout
@@ -56,7 +56,21 @@ class SordConan(ConanFile):
     def generate(self):
         env = VirtualBuildEnv(self)
         env.generate()
+        settings_arch = self.settings.get_safe("arch")
+        universal = settings_arch and "|" in settings_arch and self.settings.os == "Macos"
+        apple_arch_flag = []
+        if universal:
+            # MesonToolchain rejects multi-arch settings and meson has no
+            # universal machine: configure for one architecture, then compile
+            # and link every configured slice
+            parts = settings_arch.split("|")
+            for part in parts:
+                self.settings.arch = part
+                apple_arch_flag += ["-arch", to_apple_arch(self, default=part)]
+            self.settings.arch = parts[0]
         tc = MesonToolchain(self)
+        if universal:
+            tc.apple_arch_flag = apple_arch_flag
         tc.project_options["docs"] = "disabled"
         tc.project_options["man"] = "disabled"
         tc.project_options["tests"] = "disabled"
