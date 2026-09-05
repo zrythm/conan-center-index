@@ -66,7 +66,7 @@ class Lv2Conan(ConanFile):
         copy(self, "COPYING", src=src, dst=os.path.join(pkg, "licenses"))
 
         # Unified API headers at include/lv2/<extension>/<extension>.h
-        copy(self, "*.h", src=os.path.join(src, "include", "lv2"), dst=inc)
+        copy(self, "*.h", src=os.path.join(src, "include"), dst=inc)
         # The core lv2.h is also installed at the top include level
         copy(self, "lv2.h", src=os.path.join(src, "include", "lv2", "core"), dst=inc)
 
