@@ -94,7 +94,6 @@ class LibjpegTurboConan(ConanFile):
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
-        apply_conandata_patches(self)
         replace_in_file(
             self, "CMakeLists.txt",
             "  if(COUNT GREATER 1)",
