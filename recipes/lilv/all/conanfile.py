@@ -1,10 +1,7 @@
 from conan import ConanFile
-from conan.tools.apple import fix_apple_shared_install_name, to_apple_arch
-from conan.tools.env import VirtualBuildEnv
-from conan.tools.files import copy, get, rm, rmdir
-from conan.tools.gnu import PkgConfigDeps
-from conan.tools.layout import basic_layout
-from conan.tools.meson import Meson, MesonToolchain
+from conan.tools.apple import fix_apple_shared_install_name
+from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.files import copy, get
 import os
 
 required_conan_version = ">=1.53.0"
@@ -28,6 +25,7 @@ class LilvConan(ConanFile):
         "shared": False,
         "fPIC": True,
     }
+    exports_sources = "CMakeLists.txt"
 
     def config_options(self):
         if self.settings.os == 'Windows':
@@ -40,7 +38,7 @@ class LilvConan(ConanFile):
         self.settings.rm_safe("compiler.libcxx")
 
     def layout(self):
-        basic_layout(self, src_folder="src")
+        cmake_layout(self, src_folder="src")
 
     def requirements(self):
         self.requires("lv2/1.18.10", transitive_headers=True)
@@ -49,55 +47,26 @@ class LilvConan(ConanFile):
         self.requires("sord/0.16.22")
         self.requires("sratom/0.6.22")
 
-    def build_requirements(self):
-        self.tool_requires("meson/1.10.2")
-        self.tool_requires("pkgconf/2.5.1")
-
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
 
     def generate(self):
-        env = VirtualBuildEnv(self)
-        env.generate()
-        settings_arch = self.settings.get_safe("arch")
-        universal = settings_arch and "|" in settings_arch and self.settings.os == "Macos"
-        apple_arch_flag = []
-        if universal:
-            # MesonToolchain rejects multi-arch settings and meson has no
-            # universal machine: configure for one architecture, then compile
-            # and link every configured slice
-            parts = settings_arch.split("|")
-            for part in parts:
-                self.settings.arch = part
-                apple_arch_flag += ["-arch", to_apple_arch(self, default=part)]
-            self.settings.arch = parts[0]
-        tc = MesonToolchain(self)
-        if universal:
-            tc.apple_arch_flag = apple_arch_flag
-        tc.project_options["bindings_cpp"] = "disabled"
-        tc.project_options["bindings_py"] = "disabled"
-        tc.project_options["docs"] = "disabled"
-        tc.project_options["html"] = "disabled"
-        tc.project_options["singlehtml"] = "disabled"
-        tc.project_options["tests"] = "disabled"
-        tc.project_options["tools"] = "disabled"
+        tc = CMakeToolchain(self)
         tc.generate()
-        deps = PkgConfigDeps(self)
+        deps = CMakeDeps(self)
         deps.generate()
 
     def build(self):
-        meson = Meson(self)
-        meson.configure()
-        meson.build()
+        copy(self, "CMakeLists.txt", self.export_sources_folder, self.source_folder)
+        cmake = CMake(self)
+        cmake.configure()
+        cmake.build()
 
     def package(self):
         copy(self, "COPYING", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
-        meson = Meson(self)
-        meson.install()
-        rmdir(self, os.path.join(self.package_folder, "lib", "pkgconfig"))
-        rm(self, "*.pdb", os.path.join(self.package_folder, "bin"))
+        cmake = CMake(self)
+        cmake.install()
         fix_apple_shared_install_name(self)
-        fix_msvc_libname(self)
 
     def package_info(self):
         self.cpp_info.set_property("pkg_config_name", "lilv-0")
@@ -107,19 +76,3 @@ class LilvConan(ConanFile):
             self.cpp_info.defines.append("LILV_STATIC")
         if self.settings.os in ["Linux", "FreeBSD"]:
             self.cpp_info.system_libs.extend(["dl", "m"])
-
-def fix_msvc_libname(conanfile, remove_lib_prefix=True):
-    """remove lib prefix & change extension to .lib in case of cl like compiler"""
-    from conan.tools.files import rename
-    import glob
-    if not conanfile.settings.get_safe("compiler.runtime"):
-        return
-    libdirs = getattr(conanfile.cpp.package, "libdirs")
-    for libdir in libdirs:
-        for ext in [".dll.a", ".dll.lib", ".a"]:
-            full_folder = os.path.join(conanfile.package_folder, libdir)
-            for filepath in glob.glob(os.path.join(full_folder, f"*{ext}")):
-                libname = os.path.basename(filepath)[0:-len(ext)]
-                if remove_lib_prefix and libname[0:3] == "lib":
-                    libname = libname[3:]
-                rename(conanfile, filepath, os.path.join(os.path.dirname(filepath), f"{libname}.lib"))

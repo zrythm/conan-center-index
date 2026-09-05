@@ -1,12 +1,40 @@
 from conan import ConanFile
-from conan.tools.apple import to_apple_arch
-from conan.tools.env import VirtualBuildEnv
-from conan.tools.files import copy, get, mkdir, rename, rmdir
+from conan.tools.files import copy, get
 from conan.tools.layout import basic_layout
-from conan.tools.meson import Meson, MesonToolchain
 import os
 
 required_conan_version = ">=1.53.0"
+
+# Extensions installed under the URI-style path lv2/lv2plug.in/ns/ext
+EXTENSION_NAMES = [
+    "atom",
+    "buf-size",
+    "data-access",
+    "dynmanifest",
+    "event",
+    "instance-access",
+    "log",
+    "midi",
+    "morph",
+    "options",
+    "parameters",
+    "patch",
+    "port-groups",
+    "port-props",
+    "presets",
+    "resize-port",
+    "state",
+    "time",
+    "uri-map",
+    "urid",
+    "worker",
+]
+
+# Extensions installed under the URI-style path lv2/lv2plug.in/ns/extensions
+EXTENSIONS_NAMES = [
+    "ui",
+    "units",
+]
 
 
 class Lv2Conan(ConanFile):
@@ -26,56 +54,31 @@ class Lv2Conan(ConanFile):
     def package_id(self):
         self.info.clear()
 
-    def build_requirements(self):
-        self.tool_requires("meson/1.10.2")
-
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
 
-    def generate(self):
-        env = VirtualBuildEnv(self)
-        env.generate()
-        settings_arch = self.settings.get_safe("arch")
-        universal = settings_arch and "|" in settings_arch and self.settings.os == "Macos"
-        apple_arch_flag = []
-        if universal:
-            # MesonToolchain rejects multi-arch settings and meson has no
-            # universal machine: configure for one architecture, then compile
-            # and link every configured slice
-            parts = settings_arch.split("|")
-            for part in parts:
-                self.settings.arch = part
-                apple_arch_flag += ["-arch", to_apple_arch(self, default=part)]
-            self.settings.arch = parts[0]
-        tc = MesonToolchain(self)
-        if universal:
-            tc.apple_arch_flag = apple_arch_flag
-        tc.project_options["docs"] = "disabled"
-        tc.project_options["online_docs"] = "false"
-        tc.project_options["plugins"] = "disabled"
-        tc.project_options["tests"] = "disabled"
-        # Pin the spec-bundle install dir to <package>/lib/lv2 on every
-        # platform: meson joins this prefix-relative option to the install
-        # prefix, while the default resolves to OS-specific canonical paths
-        # outside the package on Windows
-        tc.project_options["lv2dir"] = "lib/lv2"
-        tc.generate()
-
-    def build(self):
-        meson = Meson(self)
-        meson.configure()
-        meson.build()
-
     def package(self):
-        copy(self, "COPYING", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
-        meson = Meson(self)
-        meson.install()
-        rmdir(self, os.path.join(self.package_folder, "bin"))
-        rmdir(self, os.path.join(self.package_folder, "lib", "pkgconfig"))
+        src = self.source_folder
+        pkg = self.package_folder
+        inc = os.path.join(pkg, "include")
+        ns = os.path.join(inc, "lv2", "lv2plug.in", "ns")
+
+        copy(self, "COPYING", src=src, dst=os.path.join(pkg, "licenses"))
+
+        # Unified API headers at include/lv2/<extension>/<extension>.h
+        copy(self, "*.h", src=os.path.join(src, "include", "lv2"), dst=inc)
+        # The core lv2.h is also installed at the top include level
+        copy(self, "lv2.h", src=os.path.join(src, "include", "lv2", "core"), dst=inc)
+
+        # Backwards compatible headers at URI-style paths
+        copy(self, "*", src=os.path.join(src, "include", "lv2", "core"), dst=os.path.join(ns, "lv2core"))
+        for ext_name in EXTENSION_NAMES + EXTENSIONS_NAMES:
+            group = "ext" if ext_name in EXTENSION_NAMES else "extensions"
+            copy(self, "*.h", src=os.path.join(src, "include", "lv2", ext_name), dst=os.path.join(ns, group, ext_name))
+
         # Specification data bundles are runtime resources, not libraries
-        mkdir(self, os.path.join(self.package_folder, "res"))
-        rename(self, os.path.join(self.package_folder, "lib", "lv2"),
-               os.path.join(self.package_folder, "res", "lv2"))
+        copy(self, "*", src=os.path.join(src, "lv2"), dst=os.path.join(pkg, "res", "lv2"))
+        copy(self, "*.ttl", src=os.path.join(src, "schemas.lv2"), dst=os.path.join(pkg, "res", "lv2", "schemas.lv2"))
 
     def package_info(self):
         self.cpp_info.set_property("pkg_config_name", "lv2")
