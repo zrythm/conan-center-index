@@ -97,7 +97,9 @@ endif()
 function(zix_check_feature name code)
   check_c_source_compiles("${code}" "ZIX_HAVE_${name}")
   if(ZIX_HAVE_${name})
-    target_compile_definitions(zix-0 PRIVATE "HAVE_${name}=1")
+    # zix_config.h checks the uppercase form of the symbol
+    string(TOUPPER "${name}" zix_feature)
+    target_compile_definitions(zix-0 PRIVATE "HAVE_${zix_feature}=1")
   endif()
 endfunction()
 
