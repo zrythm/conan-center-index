@@ -75,6 +75,7 @@ class QtConan(ConanFile):
         "cross_compile": [None, "ANY"],
         "sysroot": [None, "ANY"],
         "bundled_libs": [True, False],
+        "reduce_exports": [True, False],
         "disabled_features": [None, "ANY"],
     }
     options.update({module: [True, False] for module in _submodules})
@@ -117,6 +118,7 @@ class QtConan(ConanFile):
         "cross_compile": None,
         "sysroot": None,
         "bundled_libs": False,
+        "reduce_exports": True,
         "disabled_features": "",
     }
     # essential_modules, addon_modules, deprecated_modules, preview_modules:
@@ -557,6 +559,10 @@ class QtConan(ConanFile):
                               ("with_egl", "egl"),
                               ("with_gstreamer", "gstreamer")]:
             tc.variables[f"FEATURE_{conf_arg}"] = ("ON" if self.options.get_safe(opt, False) else "OFF")
+
+        # Hide statically linked third-party libraries (harfbuzz, freetype,
+        # libpng, ...) from the exported symbols of the Qt libraries
+        tc.variables["FEATURE_reduce_exports"] = ("ON" if self.options.reduce_exports else "OFF")
 
 
         for opt, conf_arg in [
