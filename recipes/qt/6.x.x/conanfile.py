@@ -563,6 +563,14 @@ class QtConan(ConanFile):
         # Hide statically linked third-party libraries (harfbuzz, freetype,
         # libpng, ...) from the exported symbols of the Qt libraries
         tc.variables["FEATURE_reduce_exports"] = ("ON" if self.options.reduce_exports else "OFF")
+        if self.options.reduce_exports and self.settings.os in ["Linux", "FreeBSD"]:
+            # FEATURE_reduce_exports only hides Qt's own targets. The
+            # third-party libraries come from external static archives
+            # compiled with default visibility, so hide their symbols from
+            # the Qt libraries at link time as well. The plain
+            # CMAKE_SHARED_LINKER_FLAGS_INIT appends to the per-configuration
+            # linker flags Conan generates, so nothing is overridden.
+            tc.variables["CMAKE_SHARED_LINKER_FLAGS_INIT"] = "-Wl,--exclude-libs,ALL"
 
 
         for opt, conf_arg in [
