@@ -572,8 +572,12 @@ class QtConan(ConanFile):
             tc.variables[f"FEATURE_{conf_arg}"] = ("ON" if self.options.get_safe(opt, False) else "OFF")
 
         # Hide statically linked third-party libraries (harfbuzz, freetype,
-        # libpng, ...) from the exported symbols of the Qt libraries
-        tc.variables["FEATURE_reduce_exports"] = ("ON" if self.options.reduce_exports else "OFF")
+        # libpng, ...) from the exported symbols of the Qt libraries.
+        # Qt defines this feature with a NOT MSVC condition, so forcing it
+        # on Windows is a configure error; the option only takes effect on
+        # ELF platforms (matching the linker flag above).
+        if self.settings.os in ["Linux", "FreeBSD"]:
+            tc.variables["FEATURE_reduce_exports"] = ("ON" if self.options.reduce_exports else "OFF")
 
 
         for opt, conf_arg in [
