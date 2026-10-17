@@ -5,3 +5,9 @@ sources:
   "3.0.2":
     url: "https://github.com/eliaskosunen/scnlib/archive/refs/tags/v3.0.2.tar.gz"
     sha256: "27f17420ddad6971339e6d5db0d915204181c31f5cb0e92a63b9998d98e2852b"
+patches:
+  "4.0.1":
+    - patch_file: "patches/4.0.1-libcxx-23-wrap-iter.patch"
+      patch_description: "libc++ 23 removed __wrap_iter::base(); use operator->()"
+      patch_type: "portability"
+      patch_source: "https://github.com/eliaskosunen/scnlib/issues/159"

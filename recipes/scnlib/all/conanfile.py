@@ -1,5 +1,5 @@
 from conan import ConanFile
-from conan.tools.files import get, copy, rm, rmdir
+from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, rm, rmdir
 from conan.tools.build import check_min_cppstd
 from conan.tools.layout import basic_layout
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
@@ -83,6 +83,9 @@ class ScnlibConan(ConanFile):
     def build_requirements(self):
         self.tool_requires("cmake/[>=3.16]")
 
+    def export_sources(self):
+        export_conandata_patches(self)
+
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
 
@@ -112,6 +115,7 @@ class ScnlibConan(ConanFile):
         deps.generate()
 
     def build(self):
+        apply_conandata_patches(self)
         if not self.options.get_safe("header_only"):
             cmake = CMake(self)
             cmake.configure()
