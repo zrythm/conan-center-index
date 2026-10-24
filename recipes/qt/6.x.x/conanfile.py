@@ -1767,7 +1767,14 @@ class QtConan(ConanFile):
         if self.settings.os in ["Windows", "iOS"]:
             _add_build_module("qtCore", self._cmake_entry_point_file)
 
-        for m in os.listdir(os.path.join("lib", "cmake")):
+        # Build module order matters: Qt6CoreConfigExtras.cmake calls
+        # _qt_internal_setup_deploy_support() at include time, capturing the
+        # QT6_INSTALL_* variables that QtInstallPaths.cmake defines. Sort the
+        # module dirs so lib/cmake/Qt6 is always attached before
+        # lib/cmake/Qt6Core; os.listdir() returns filesystem-dependent order,
+        # which yielded deploy scripts with empty install paths on some
+        # consumer machines.
+        for m in sorted(os.listdir(os.path.join("lib", "cmake"))):
             component_name = m.replace("Qt6", "qt")
             if component_name == "qt":
                 component_name = "qtCore"
@@ -1786,7 +1793,7 @@ class QtConan(ConanFile):
                     _add_build_module(component_name, module)
 
                 cmake_dir = os.path.join(self.package_folder, "lib", "cmake", m)
-                helper_modules = glob.glob(os.path.join(cmake_dir, "QtPublic*Helpers.cmake"))
+                helper_modules = sorted(glob.glob(os.path.join(cmake_dir, "QtPublic*Helpers.cmake")))
 
                 # QtPublicCMakeIncludeGuardHelpers.cmake (Qt >= 6.11.2) defines __qt_internal_cmake_include_guard,
                 # which the other helpers use, so it must be included first (as upstream's QtConfig.cmake.in does)
@@ -1798,7 +1805,7 @@ class QtConan(ConanFile):
 
                 for helper_module in helper_modules:
                     _add_build_module(component_name, helper_module)
-                for helper_module in glob.glob(os.path.join(cmake_dir, "Qt6QmlPublic*Helpers.cmake")):
+                for helper_module in sorted(glob.glob(os.path.join(cmake_dir, "Qt6QmlPublic*Helpers.cmake"))):
                     _add_build_module(component_name, helper_module)
 
                 self.cpp_info.components[component_name].builddirs.append(os.path.join("lib", "cmake", m))
