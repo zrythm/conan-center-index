@@ -1755,7 +1755,14 @@ class QtConan(ConanFile):
         if self.settings.os in ["Windows", "iOS"]:
             _add_build_module("qtCore", self._cmake_entry_point_file)
 
-        for m in os.listdir(os.path.join("lib", "cmake")):
+        # Build module order matters: Qt6CoreConfigExtras.cmake calls
+        # _qt_internal_setup_deploy_support() at include time, capturing the
+        # QT6_INSTALL_* variables that QtInstallPaths.cmake defines. Sort the
+        # module dirs so lib/cmake/Qt6 is always attached before
+        # lib/cmake/Qt6Core; os.listdir() returns filesystem-dependent order,
+        # which yielded deploy scripts with empty install paths on some
+        # consumer machines.
+        for m in sorted(os.listdir(os.path.join("lib", "cmake"))):
             component_name = m.replace("Qt6", "qt")
             if component_name == "qt":
                 component_name = "qtCore"
@@ -1773,9 +1780,9 @@ class QtConan(ConanFile):
                 if os.path.isfile(module):
                     _add_build_module(component_name, module)
 
-                for helper_modules in glob.glob(os.path.join(self.package_folder, "lib", "cmake", m, "QtPublic*Helpers.cmake")):
+                for helper_modules in sorted(glob.glob(os.path.join(self.package_folder, "lib", "cmake", m, "QtPublic*Helpers.cmake"))):
                     _add_build_module(component_name, helper_modules)
-                for helper_modules in glob.glob(os.path.join(self.package_folder, "lib", "cmake", m, "Qt6QmlPublic*Helpers.cmake")):
+                for helper_modules in sorted(glob.glob(os.path.join(self.package_folder, "lib", "cmake", m, "Qt6QmlPublic*Helpers.cmake"))):
                     _add_build_module(component_name, helper_modules)
                 self.cpp_info.components[component_name].builddirs.append(os.path.join("lib", "cmake", m))
 
