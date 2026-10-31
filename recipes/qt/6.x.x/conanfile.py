@@ -943,6 +943,27 @@ class QtConan(ConanFile):
         save(self, os.path.join(self.package_folder, "lib", "cmake", "Qt6",
                                 "conan_qt_qt6_policies.cmake"), contents)
 
+    def _evaluate_qt_targets_included_guards(self):
+        # Qt's module config files set __qt_<Module>_targets_file_included
+        # after including the module's targets file, and gate the follow-up
+        # includes on that variable. Qt6QmlConfigExtras.cmake registers the
+        # QML deploy finalizers on Qt6::Qml there, which create the
+        # qmlimportscan build step for executables. The conan-generated
+        # config files always define the module targets before these files
+        # are included as build modules, so the guard is constant-true in a
+        # conan package and is replaced with TRUE.
+        pattern = re.compile(r"__qt_[A-Za-z0-9_]+_targets_file_included")
+        replacements = 0
+        for path in sorted(glob.glob(os.path.join(self.package_folder, "lib", "cmake", "*", "*.cmake"))):
+            with open(path, encoding="utf-8") as f:
+                guards = sorted(set(pattern.findall(f.read())))
+            for guard in guards:
+                replace_in_file(self, path, guard, "TRUE")
+                replacements += 1
+        if not replacements:
+            raise ConanException(
+                "no Qt targets-included guard variables found in the installed Qt cmake files")
+
     def package(self):
         if self.settings.os == "Macos":
             save(self, ".qmake.stash", "")
@@ -968,6 +989,7 @@ class QtConan(ConanFile):
         # run before the cmake directory pruning below removes most
         # Qt6*Targets.cmake files
         self._write_metatypes_build_module()
+        self._evaluate_qt_targets_included_guards()
 
         for m in os.listdir(os.path.join(self.package_folder, "lib", "cmake")):
             if os.path.isfile(os.path.join(self.package_folder, "lib", "cmake", m, f"{m}Macros.cmake")):
