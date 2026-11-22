@@ -1,0 +1,90 @@
+import os
+
+from conan import ConanFile
+from conan.tools.apple import fix_apple_shared_install_name
+from conan.tools.build import check_min_cppstd
+from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.files import get, rmdir
+
+required_conan_version = ">=2.0.0"
+
+
+class QtmcpConan(ConanFile):
+    name = "qtmcp"
+    description = "Qt implementation of the Model Context Protocol (MCP)"
+    license = "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+    url = "https://gitlab.zrythm.org/zrythm/conan-center-index"
+    homepage = "https://github.com/signal-slot/qtmcp"
+    topics = ("mcp", "model-context-protocol", "qt")
+    package_type = "library"
+    settings = "os", "arch", "compiler", "build_type"
+    options = {
+        "shared": [True, False],
+        "fPIC": [True, False],
+    }
+    default_options = {
+        "shared": False,
+        "fPIC": True,
+    }
+
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.fPIC
+
+    def configure(self):
+        if self.options.shared:
+            self.options.rm_safe("fPIC")
+
+    def layout(self):
+        cmake_layout(self, src_folder="src")
+
+    def requirements(self):
+        # QtMcp public headers expose QtCore and QtNetwork types, so
+        # consumers need the Qt headers and libraries too.
+        self.requires(
+            "qt/[>=6.8 <7]", transitive_headers=True, transitive_libs=True
+        )
+
+    def validate(self):
+        check_min_cppstd(self, 20)
+
+    def source(self):
+        get(self, **self.conan_data["sources"][self.version], strip_root=True)
+
+    def generate(self):
+        tc = CMakeToolchain(self)
+        tc.generate()
+        deps = CMakeDeps(self)
+        deps.generate()
+
+    def build(self):
+        cmake = CMake(self)
+        cmake.configure()
+        cmake.build()
+
+    def package(self):
+        cmake = CMake(self)
+        cmake.install()
+        fix_apple_shared_install_name(self)
+        # CMakeDeps generates its own QtMcp config files from cpp_info.
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
+
+    def package_info(self):
+        self.cpp_info.set_property("cmake_file_name", "QtMcp")
+        # The three exported CMake targets QtMcp::Common, QtMcp::Server and
+        # QtMcp::StreamableHttp map to the McpCommon, McpServer and
+        # McpServerStreamableHttp libraries installed by the project.
+        common = self.cpp_info.components["common"]
+        common.set_property("cmake_target_name", "QtMcp::Common")
+        common.libs = ["McpCommon"]
+        common.requires = ["qt::qtCore"]
+
+        server = self.cpp_info.components["server"]
+        server.set_property("cmake_target_name", "QtMcp::Server")
+        server.libs = ["McpServer"]
+        server.requires = ["common", "qt::qtCore", "qt::qtNetwork"]
+
+        streamable_http = self.cpp_info.components["streamablehttp"]
+        streamable_http.set_property("cmake_target_name", "QtMcp::StreamableHttp")
+        streamable_http.libs = ["McpServerStreamableHttp"]
+        streamable_http.requires = ["server", "qt::qtCore", "qt::qtNetwork"]
