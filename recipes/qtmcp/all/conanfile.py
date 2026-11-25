@@ -1,10 +1,12 @@
 import os
 
 from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
 from conan.tools.apple import fix_apple_shared_install_name
 from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 from conan.tools.files import get, rmdir
+from conan.tools.microsoft import is_msvc
 
 required_conan_version = ">=2.0.0"
 
@@ -21,10 +23,14 @@ class QtmcpConan(ConanFile):
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
+        # Build ARM64EC machine code for a consumer that is itself ARM64EC,
+        # in an otherwise x86_64 dependency graph.
+        "arm64ec": [True, False],
     }
     default_options = {
         "shared": False,
         "fPIC": True,
+        "arm64ec": False,
     }
 
     def config_options(self):
@@ -47,12 +53,26 @@ class QtmcpConan(ConanFile):
 
     def validate(self):
         check_min_cppstd(self, 20)
+        if self.options.arm64ec and (
+            self.settings.get_safe("os") != "Windows"
+            or not is_msvc(self)
+            or self.settings.get_safe("arch") not in ("x86_64", "arm64ec")
+        ):
+            raise ConanInvalidConfiguration(
+                "arm64ec=True requires os=Windows, compiler=msvc and "
+                "arch=x86_64 or arch=arm64ec"
+            )
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
 
     def generate(self):
         tc = CMakeToolchain(self)
+        if self.options.arm64ec:
+            # CMake also sees this flag during compiler identification and
+            # then adds /MACHINE:ARM64EC and the _ARM64EC_ define itself.
+            tc.extra_cflags.append("/arm64EC")
+            tc.extra_cxxflags.append("/arm64EC")
         tc.generate()
         deps = CMakeDeps(self)
         deps.generate()
