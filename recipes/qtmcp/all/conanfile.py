@@ -23,14 +23,10 @@ class QtmcpConan(ConanFile):
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
-        # Build ARM64EC machine code for a consumer that is itself ARM64EC,
-        # in an otherwise x86_64 dependency graph.
-        "arm64ec": [True, False],
     }
     default_options = {
         "shared": False,
         "fPIC": True,
-        "arm64ec": False,
     }
 
     def config_options(self):
@@ -53,14 +49,11 @@ class QtmcpConan(ConanFile):
 
     def validate(self):
         check_min_cppstd(self, 20)
-        if self.options.arm64ec and (
-            self.settings.get_safe("os") != "Windows"
-            or not is_msvc(self)
-            or self.settings.get_safe("arch") not in ("x86_64", "arm64ec")
+        if self.settings.get_safe("arch") == "arm64ec" and (
+            self.settings.get_safe("os") != "Windows" or not is_msvc(self)
         ):
             raise ConanInvalidConfiguration(
-                "arm64ec=True requires os=Windows, compiler=msvc and "
-                "arch=x86_64 or arch=arm64ec"
+                "arch=arm64ec requires os=Windows and compiler=msvc"
             )
 
     def source(self):
@@ -68,7 +61,7 @@ class QtmcpConan(ConanFile):
 
     def generate(self):
         tc = CMakeToolchain(self)
-        if self.options.arm64ec:
+        if self.settings.get_safe("arch") == "arm64ec":
             # CMake also sees this flag during compiler identification and
             # then adds /MACHINE:ARM64EC and the _ARM64EC_ define itself.
             tc.extra_cflags.append("/arm64EC")
