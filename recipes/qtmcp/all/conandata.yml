@@ -2,6 +2,6 @@ sources:
   "2026.7.28-z1":
     url: "https://github.com/zrythm/qtmcp/archive/refs/tags/v2026.7.28-z1.tar.gz"
     sha256: "e52d8e9b2d9f3d2c63d9f1064abbe1cfbd69524cade1ed6baa35cc59b9bbd61c"
-  "2026.7.28-z2":
-    url: "https://github.com/zrythm/qtmcp/archive/refs/tags/v2026.7.28-z2.tar.gz"
-    sha256: "fc2fa86f960e08dc540bff7c083d06906963cda1a7bd7fccd80d785ae426490a"
+  "2026.7.28-z3":
+    url: "https://github.com/zrythm/qtmcp/archive/refs/tags/v2026.7.28-z3.tar.gz"
+    sha256: "0f66c2bd13dfb3a76061ddb3974fdbe25825622515a91b138d4ed8510d4ca823"
